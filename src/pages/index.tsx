@@ -1,8 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
 import Head from 'next/head';
+import { GetStaticProps } from 'next';
+import { SubscribeButton } from '../components/SubscribeButton';
 import styles from './home.module.scss'
+import { stripe } from '../services/stripe';
+import { formatToUSD } from '../utils/price';
 
-export default function Home() {
+interface HomeProps {
+  product: {
+    price_id: string;
+    amount: number;
+  }
+}
+
+export default function Home({ product }: HomeProps) {
   return (
     <>
       <Head>
@@ -17,8 +28,9 @@ export default function Home() {
           </h1>
           <p>
             Get access to all the publications <br />
-            <span>for $9.90 month</span>
+            <span>for {product.amount} month</span>
           </p>
+          <SubscribeButton price_id={product.price_id} />
         </section>
         <img src="/images/avatar.svg" alt="girl coding" />
       </main>
@@ -26,4 +38,27 @@ export default function Home() {
   );
 }
 
+export const getStaticProps: GetStaticProps = async () => {
+  /**
+   * @method retrieve
+   * The method prices.retrieve is used to fetch the price of a specific product, 
+   * that can be found through the price ID
+   * @param expand 
+   * It can be used to return no only the ID of the product price, but all product data
+  */
+  const response = await stripe.prices.retrieve('price_1JEIC6JRhNNhKUwZqChXHLs5', {
+    expand: ['product'] 
+  });
 
+  const product = {
+    price_id: response.id,
+    amount: formatToUSD(response.unit_amount / 100), // The value comes in cents
+  }
+ 
+  return {
+    props: {
+      product,
+    },
+    revalidate: 60 * 60 * 24,
+  }
+}
